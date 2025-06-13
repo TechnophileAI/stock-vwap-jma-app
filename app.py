@@ -15,23 +15,28 @@ tickers = st.multiselect("Select stock tickers",
 
 for ticker in tickers:
     st.subheader(f"{ticker} Chart")
-    data = yf.download(ticker, period="7d", interval="1h")
+    
+    # Using 5-minute interval for better data availability on Streamlit Cloud
+    data = yf.download(ticker, period="5d", interval="5m")
 
-    if not data.empty:
-        data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
-        data['TPV'] = data['Typical_Price'] * data['Volume']
-        data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
-        data['JMA'] = data['Close'].ewm(span=10, adjust=False).mean().ewm(span=5, adjust=False).mean()
+    if data.empty or 'Volume' not in data.columns:
+        st.warning(f"No sufficient data available for {ticker}. Try a different one.")
+        continue  # Move to the next ticker
 
-        fig, ax = plt.subplots(figsize=(14, 5))
-        ax.plot(data.index, data['Close'], label='Close Price', linestyle='--')
-        ax.plot(data.index, data['VWAP'], label='VWAP', linewidth=2)
-        ax.plot(data.index, data['JMA'], label='JMA', linewidth=2)
-        ax.set_title(f"{ticker} - VWAP & JMA")
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Price")
-        ax.grid(True)
-        ax.legend()
-        st.pyplot(fig)
-    else:
-        st.warning(f"No data available for {ticker}")
+    # Calculate indicators
+    data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
+    data['TPV'] = data['Typical_Price'] * data['Volume']
+    data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
+    data['JMA'] = data['Close'].ewm(span=10, adjust=False).mean().ewm(span=5, adjust=False).mean()
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(14, 5))
+    ax.plot(data.index, data['Close'], label='Close Price', linestyle='--')
+    ax.plot(data.index, data['VWAP'], label='VWAP', linewidth=2)
+    ax.plot(data.index, data['JMA'], label='JMA', linewidth=2)
+    ax.set_title(f"{ticker} - VWAP & JMA")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Price")
+    ax.grid(True)
+    ax.legend()
+    st.pyplot(fig)
