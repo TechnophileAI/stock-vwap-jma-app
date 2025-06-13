@@ -18,7 +18,7 @@ for ticker in tickers:
     st.subheader(f"{ticker} Chart")
 
     # Force grouped output
-    data = yf.download([ticker], period="5d", interval="5m", group_by="ticker", progress=False)
+    data = yf.download([ticker], period="2d", interval="1m", group_by="ticker", progress=False)
 
     # Handle grouped DataFrame
     if isinstance(data.columns, pd.MultiIndex):
