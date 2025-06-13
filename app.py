@@ -19,15 +19,18 @@ for ticker in tickers:
 
     data = yf.download(ticker, period="5d", interval="5m", progress=False)
 
-    # Check if all required columns exist
-    if data.empty or not all(col in data.columns for col in required_columns):
-        st.warning(f"{ticker}: Incomplete or missing data. Skipping.")
+    # Find which required columns exist
+    available_columns = [col for col in required_columns if col in data.columns]
+
+    # If key columns missing, skip
+    if data.empty or len(available_columns) < len(required_columns):
+        st.warning(f"{ticker}: Missing essential columns. Skipping.")
         continue
 
-    # Drop rows with NaNs
-    data = data.dropna(subset=required_columns)
+    # Drop rows with missing values only for available columns
+    data = data.dropna(subset=available_columns)
 
-    # Calculate VWAP and JMA
+    # Calculate indicators
     data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
     data['TPV'] = data['Typical_Price'] * data['Volume']
     data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
