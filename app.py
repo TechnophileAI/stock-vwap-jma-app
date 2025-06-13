@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 st.set_page_config(layout="wide")
 st.title("📈 Real-Time VWAP + JMA Chart Viewer")
 
-# User Input
 tickers = st.multiselect("Select stock tickers", 
                          ["TSLA", "APLD", "QBTS", "SBET", "DFDV", 
                           "TSLL", "SOXL", "CHYM", "SOFI", "BBAI", 
@@ -15,13 +14,15 @@ tickers = st.multiselect("Select stock tickers",
 
 for ticker in tickers:
     st.subheader(f"{ticker} Chart")
-    
-    # Using 5-minute interval for better data availability on Streamlit Cloud
-    data = yf.download(ticker, period="5d", interval="5m")
+
+    data = yf.download(ticker, period="5d", interval="5m", progress=False)
 
     if data.empty or 'Volume' not in data.columns:
         st.warning(f"No sufficient data available for {ticker}. Try a different one.")
-        continue  # Move to the next ticker
+        continue
+
+    # Drop rows with missing price/volume data
+    data = data.dropna(subset=["High", "Low", "Close", "Volume"])
 
     # Calculate indicators
     data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
