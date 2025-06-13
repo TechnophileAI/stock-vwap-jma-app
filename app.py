@@ -12,40 +12,44 @@ tickers = st.multiselect("Select stock tickers",
                           "TSLL", "SOXL", "CHYM", "SOFI", "BBAI", 
                           "HIMS", "IONQ"], default=["TSLA"])
 
-required_columns = ["High", "Low", "Close", "Volume"]
+required_columns = ["high", "low", "close", "volume"]
 
 for ticker in tickers:
     st.subheader(f"{ticker} Chart")
 
-    # Fetch data
-    data = yf.download(ticker, period="5d", interval="5m", progress=False)
+    # Force grouped output
+    data = yf.download([ticker], period="5d", interval="5m", group_by="ticker", progress=False)
 
-    # Normalize column names (ensure consistent format)
-    data.columns = [col.title() for col in data.columns]
+    # Handle grouped DataFrame
+    if isinstance(data.columns, pd.MultiIndex):
+        try:
+            data = data[ticker]  # Extract only the sub-DataFrame for that ticker
+            data.columns = [col.lower() for col in data.columns]
+        except KeyError:
+            st.warning(f"{ticker}: No data returned or structure issue.")
+            continue
+    else:
+        data.columns = [col.lower() for col in data.columns]
 
-    # Check if all required columns exist
+    st.text(f"{ticker} columns: {list(data.columns)}")
+
     if data.empty or not all(col in data.columns for col in required_columns):
-        st.warning(f"{ticker}: Required columns missing from data. Skipping.")
+        st.warning(f"{ticker}: Required columns missing. Skipping.")
         continue
 
-    # Drop rows with NaNs in required columns
-    try:
-        data = data.dropna(subset=required_columns)
-    except KeyError:
-        st.warning(f"{ticker}: Unable to drop NaNs due to missing columns. Skipping.")
-        continue
+    data = data.dropna(subset=required_columns)
 
     # Calculate indicators
-    data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
-    data['TPV'] = data['Typical_Price'] * data['Volume']
-    data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
-    data['JMA'] = data['Close'].ewm(span=10, adjust=False).mean().ewm(span=5, adjust=False).mean()
+    data['typical_price'] = (data['high'] + data['low'] + data['close']) / 3
+    data['tpv'] = data['typical_price'] * data['volume']
+    data['vwap'] = data['tpv'].cumsum() / data['volume'].cumsum()
+    data['jma'] = data['close'].ewm(span=10, adjust=False).mean().ewm(span=5, adjust=False).mean()
 
-    # Plotting
+    # Plot chart
     fig, ax = plt.subplots(figsize=(14, 5))
-    ax.plot(data.index, data['Close'], label='Close Price', linestyle='--')
-    ax.plot(data.index, data['VWAP'], label='VWAP', linewidth=2)
-    ax.plot(data.index, data['JMA'], label='JMA', linewidth=2)
+    ax.plot(data.index, data['close'], label='Close Price', linestyle='--')
+    ax.plot(data.index, data['vwap'], label='VWAP', linewidth=2)
+    ax.plot(data.index, data['jma'], label='JMA', linewidth=2)
     ax.set_title(f"{ticker} - VWAP & JMA")
     ax.set_xlabel("Time")
     ax.set_ylabel("Price")
