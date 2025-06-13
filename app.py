@@ -17,18 +17,23 @@ required_columns = ["High", "Low", "Close", "Volume"]
 for ticker in tickers:
     st.subheader(f"{ticker} Chart")
 
+    # Fetch data
     data = yf.download(ticker, period="5d", interval="5m", progress=False)
 
-    # Find which required columns exist
-    available_columns = [col for col in required_columns if col in data.columns]
+    # Normalize column names (ensure consistent format)
+    data.columns = [col.title() for col in data.columns]
 
-    # If key columns missing, skip
-    if data.empty or len(available_columns) < len(required_columns):
-        st.warning(f"{ticker}: Missing essential columns. Skipping.")
+    # Check if all required columns exist
+    if data.empty or not all(col in data.columns for col in required_columns):
+        st.warning(f"{ticker}: Required columns missing from data. Skipping.")
         continue
 
-    # Drop rows with missing values only for available columns
-    data = data.dropna(subset=available_columns)
+    # Drop rows with NaNs in required columns
+    try:
+        data = data.dropna(subset=required_columns)
+    except KeyError:
+        st.warning(f"{ticker}: Unable to drop NaNs due to missing columns. Skipping.")
+        continue
 
     # Calculate indicators
     data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
@@ -36,7 +41,7 @@ for ticker in tickers:
     data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
     data['JMA'] = data['Close'].ewm(span=10, adjust=False).mean().ewm(span=5, adjust=False).mean()
 
-    # Plot
+    # Plotting
     fig, ax = plt.subplots(figsize=(14, 5))
     ax.plot(data.index, data['Close'], label='Close Price', linestyle='--')
     ax.plot(data.index, data['VWAP'], label='VWAP', linewidth=2)
