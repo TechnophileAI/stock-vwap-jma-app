@@ -12,19 +12,22 @@ tickers = st.multiselect("Select stock tickers",
                           "TSLL", "SOXL", "CHYM", "SOFI", "BBAI", 
                           "HIMS", "IONQ"], default=["TSLA"])
 
+required_columns = ["High", "Low", "Close", "Volume"]
+
 for ticker in tickers:
     st.subheader(f"{ticker} Chart")
 
     data = yf.download(ticker, period="5d", interval="5m", progress=False)
 
-    if data.empty or 'Volume' not in data.columns:
-        st.warning(f"No sufficient data available for {ticker}. Try a different one.")
+    # Check if all required columns exist
+    if data.empty or not all(col in data.columns for col in required_columns):
+        st.warning(f"{ticker}: Incomplete or missing data. Skipping.")
         continue
 
-    # Drop rows with missing price/volume data
-    data = data.dropna(subset=["High", "Low", "Close", "Volume"])
+    # Drop rows with NaNs
+    data = data.dropna(subset=required_columns)
 
-    # Calculate indicators
+    # Calculate VWAP and JMA
     data['Typical_Price'] = (data['High'] + data['Low'] + data['Close']) / 3
     data['TPV'] = data['Typical_Price'] * data['Volume']
     data['VWAP'] = data['TPV'].cumsum() / data['Volume'].cumsum()
